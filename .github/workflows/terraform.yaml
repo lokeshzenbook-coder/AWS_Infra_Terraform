@@ -11,7 +11,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
-  TF_VERSION: 1.6.0
+  TF_VERSION: 1.16.3
   TF_VAR_ami_id: ${{ vars.AMI_ID }}
   TF_VAR_key_name: ${{ vars.KEY_NAME }}
   TF_VAR_my_ip: ${{ vars.MY_IP }}
