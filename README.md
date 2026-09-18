@@ -1,26 +1,36 @@
 # AWS_Infra_Terraform
 
-Terraform infrastructure (VPC, public subnet, IGW, route table, security group, EC2) and a GitHub Actions workflow (`terraform.yaml`) that provisions it using AWS OIDC — no long-lived AWS keys stored in GitHub.
+Terraform infrastructure (VPC, public subnet, IGW, route table, security group, EC2) provisioned by a GitHub Actions workflow (`terraform.yaml`) using static AWS credentials stored as GitHub Actions secrets.
 
-## OIDC setup (one-time bootstrap)
+## AWS credentials setup (one-time)
 
-The OIDC provider, IAM role, and its ARN are created by Terraform itself (`oidc.tf`), so the ARN is never typed into the workflow.
+No OIDC is used. Add the following to **Settings → Secrets and variables → Actions → Secrets**:
 
-1. Run `terraform init && terraform apply` locally with your AWS credentials (default `aws` profile).
-2. Read the generated role ARN:
-   ```sh
-   terraform output oidc_role_arn
-   ```
-3. In GitHub: **Settings → Secrets and variables → Actions → Variables**, add:
-   - `AWS_ROLE_TO_ASSUME`: paste the ARN from step 2 (e.g. `arn:aws:iam::123456789012:role/github-actions-terraform`)
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `AWS_SESSION_TOKEN` *(optional — only if your credentials are temporary)*
 
-The workflow references it via `${{ vars.AWS_ROLE_TO_ASSUME }}`.
+The workflow references them via `${{ secrets.AWS_ACCESS_KEY_ID }}` etc.
+
+> Use a dedicated IAM user whose policy grants at least EC2/VPC/IAM management permissions needed by this Terraform config.
 
 ## Variable values
 
 `ami_id`, `key_name`, and `my_ip` have no defaults — provide them via a
-`terraform.tfvars` file (gitignored) or as GitHub Actions variables so
-`terraform plan` can run.
+`terraform.tfvars` file (gitignored) for local runs, or as GitHub Actions
+**Variables** (non-secret) so `terraform plan` can run in CI:
+
+- `AMI_ID`
+- `KEY_NAME`
+- `MY_IP`
+
+## Local run
+
+```sh
+terraform init
+terraform plan
+terraform apply
+```
 
 ## Manual run
 
