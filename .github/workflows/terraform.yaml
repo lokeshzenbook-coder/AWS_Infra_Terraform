@@ -12,9 +12,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   TF_VERSION: 1.16.3
-  TF_VAR_ami_id: ${{ vars.AMI_ID }}
-  TF_VAR_key_name: ${{ vars.KEY_NAME }}
-  TF_VAR_my_ip: ${{ vars.MY_IP }}
+  PYTHON_VERSION: "3.12"
 
 jobs:
   terraform:
@@ -34,6 +32,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -48,8 +47,6 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Terraform Validate
         id: validate
@@ -58,6 +55,10 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color -input=false -out=plan.tfplan
+        env:
+          TF_VAR_ami_id: ${{ vars.AMI_ID }}
+          TF_VAR_key_name: ${{ vars.KEY_NAME }}
+          TF_VAR_my_ip: ${{ vars.MY_IP }}
         continue-on-error: true
 
       - name: Terraform Plan Status
@@ -67,18 +68,70 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -no-color -auto-approve -input=false plan.tfplan
+        env:
+          TF_VAR_ami_id: ${{ vars.AMI_ID }}
+          TF_VAR_key_name: ${{ vars.KEY_NAME }}
+          TF_VAR_my_ip: ${{ vars.MY_IP }}
 
-  cost:
-    name: Cost Report (C3X)
+  cost-estimate:
+    name: Cost Estimate (boto3)
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       contents: read
 
-    steps:
-      - uses: actions/checkout@v4
+    env:
+      AWS_REGION: ${{ vars.COST_REGION != '' && vars.COST_REGION || 'us-east-1' }}
+      INSTANCE_TYPE: ${{ vars.INSTANCE_TYPE != '' && vars.INSTANCE_TYPE || 't3.small' }}
+      VOLUME_GB: ${{ vars.VOLUME_GB != '' && vars.VOLUME_GB || '30' }}
+      HOURS_PER_MONTH: ${{ vars.HOURS_PER_MONTH != '' && vars.HOURS_PER_MONTH || '730' }}
 
-      - name: Estimate infrastructure cost
-        uses: c3xdev/c3x@v0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: .
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run cost estimator
+        id: cost
+        run: python scripts/cost_estimator.py --output markdown
+
+      - name: Check report
+        if: always()
+        run: test -f cost_report.md && echo "Report generated"
+
+      - name: Upload cost report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-report
+          path: cost_report.md
+          retention-days: 30
+
+      - name: Comment on pull request
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('cost_report.md', 'utf8');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report,
+            });

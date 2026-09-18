@@ -21,6 +21,14 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Generated reports
+cost_report.md
+
 # OS / Editor
 .DS_Store
 Thumbs.db

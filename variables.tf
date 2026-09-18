@@ -22,6 +22,12 @@ variable "instance_type" {
   default     = "t3.small"
 }
 
+variable "volume_size" {
+  description = "Root EBS volume size in GB"
+  type        = number
+  default     = 30
+}
+
 variable "ami_id" {
   description = "Ubuntu AMI ID"
   type        = string
