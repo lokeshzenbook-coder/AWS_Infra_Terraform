@@ -138,7 +138,7 @@ resource "aws_instance" "app" {
     delete_on_termination = true
   }
 
-user_data = <<-EOF
+  user_data = <<-EOF
   #!/bin/bash
   set -e
 
