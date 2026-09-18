@@ -1,6 +1,6 @@
 # AWS_Infra_Terraform
 
-Terraform infrastructure (VPC, public subnet, IGW, route table, security group, EC2) provisioned by a GitHub Actions workflow (`terraform.yaml`) using static AWS credentials stored as GitHub Actions secrets.
+Terraform infrastructure (VPC, public subnet, IGW, route table, security group, EC2) provisioned by a GitHub Actions workflow (`terraform.yaml`) using static AWS credentials stored as GitHub Actions secrets. Every CI run also produces a free cost report via [C3X](https://c3x.dev) — open source, no API key needed (PRs get a cost comment, pushes get the estimate in the logs).
 
 ## AWS credentials setup (one-time)
 

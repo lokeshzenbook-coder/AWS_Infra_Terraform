@@ -67,3 +67,18 @@ jobs:
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: terraform apply -no-color -auto-approve -input=false plan.tfplan
+
+  cost:
+    name: Cost Report (C3X)
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Estimate infrastructure cost
+        uses: c3xdev/c3x@v0
+        with:
+          path: .
